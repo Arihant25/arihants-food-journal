@@ -7,9 +7,10 @@ import {
   deleteCloudEntry,
   deleteCloudKeys,
   fetchCloudEntries,
-  fetchCloudKeys,
+  fetchCloudSettings,
   mergeEntries,
   putCloudEntry,
+  putCloudGoals,
   putCloudKeys,
   putCloudName,
 } from "@/lib/storage";
@@ -57,8 +58,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    setSync("syncing");
     (async () => {
+      setSync("syncing");
       try {
         const local = store.getEntries();
         const cloud = await fetchCloudEntries(token);
@@ -73,20 +74,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) setSync("error");
       }
 
-      // Pull cloud settings (name always; API keys only when sync is on).
+      // Pull cloud settings (name + daily requirements always; API keys only when sync is on).
       try {
-        const cloud = await fetchCloudKeys(token);
+        const cloud = await fetchCloudSettings(token);
         if (cancelled) return;
         const prev = store.getSettings();
         const next: Settings = {
           ...prev,
           // Restore name from cloud if not already set locally.
           name: prev.name ?? cloud.name,
+          // Daily requirements: adopt the cloud copy when it exists (it's the
+          // synced source of truth); otherwise keep local and seed the cloud below.
+          goals: cloud.goals ?? prev.goals,
         };
         if (prev.ai.syncKeys) {
           next.ai = { ...prev.ai, apiKeys: { ...prev.ai.apiKeys, ...cloud.apiKeys } };
         }
         store.setSettings(next);
+        // First device to sign in seeds the cloud with its daily requirements.
+        if (!cloud.goals) putCloudGoals(token, next.goals).catch(() => { });
       } catch {
         /* keep local settings if the pull fails */
       }
@@ -143,6 +149,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         if ("name" in patch) {
           putCloudName(token, next.name).catch(() => { });
+        }
+        // Daily requirements always sync when signed in (not gated like keys).
+        if ("goals" in patch) {
+          putCloudGoals(token, next.goals).catch(() => setSync("error"));
         }
       }
     },

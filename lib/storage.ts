@@ -1,5 +1,5 @@
 import { DEFAULT_GOALS } from "./nutrition";
-import { AiProvider, FoodEntry, Settings } from "./types";
+import { AiProvider, DailyGoals, FoodEntry, Settings } from "./types";
 
 /**
  * Storage layer. The app is local-first: everything lives in localStorage and
@@ -101,14 +101,20 @@ export async function deleteAllCloudEntries(token: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete all cloud entries");
 }
 
-/* ------------------------------- cloud keys ------------------------------- */
+/* ----------------------------- cloud settings ----------------------------- */
 
-/** Fetch the user's synced settings (API keys + name). */
-export async function fetchCloudKeys(token: string): Promise<{ apiKeys: Partial<Record<AiProvider, string>>; name?: string }> {
+/** Fetch the user's synced settings (API keys + daily requirements + name). */
+export async function fetchCloudSettings(
+  token: string,
+): Promise<{ apiKeys: Partial<Record<AiProvider, string>>; goals?: DailyGoals; name?: string }> {
   const res = await fetch("/api/settings", { headers: authHeaders(token) });
-  if (!res.ok) throw new Error("Failed to load cloud keys");
+  if (!res.ok) throw new Error("Failed to load cloud settings");
   const data = await res.json();
-  return { apiKeys: (data.apiKeys ?? {}) as Partial<Record<AiProvider, string>>, name: data.name ?? undefined };
+  return {
+    apiKeys: (data.apiKeys ?? {}) as Partial<Record<AiProvider, string>>,
+    goals: (data.goals ?? undefined) as DailyGoals | undefined,
+    name: data.name ?? undefined,
+  };
 }
 
 /** Store the user's API keys in their cloud account. */
@@ -119,6 +125,16 @@ export async function putCloudKeys(token: string, apiKeys: Partial<Record<AiProv
     body: JSON.stringify({ apiKeys }),
   });
   if (!res.ok) throw new Error("Failed to save keys to cloud");
+}
+
+/** Store the user's daily requirements (targets) in their cloud account. */
+export async function putCloudGoals(token: string, goals: DailyGoals): Promise<void> {
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ goals }),
+  });
+  if (!res.ok) throw new Error("Failed to save goals to cloud");
 }
 
 /** Store the user's display name in their cloud account. */

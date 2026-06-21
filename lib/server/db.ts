@@ -1,6 +1,6 @@
 import "server-only";
 import { MongoClient, Collection } from "mongodb";
-import { AiProvider, FoodEntry } from "../types";
+import { AiProvider, DailyGoals, FoodEntry } from "../types";
 
 /**
  * MongoDB connection, cached across hot reloads in development. Used only by the
@@ -11,10 +11,11 @@ const DB_NAME = "arihants_food_journal";
 
 type StoredEntry = FoodEntry & { userId: string };
 
-/** A user's synced settings: their display name plus, optionally, AI API keys. */
+/** A user's synced settings: display name, daily requirements, and (optionally) AI API keys. */
 export type StoredSettings = {
     userId: string;
     apiKeys: Partial<Record<AiProvider, string>>;
+    goals?: DailyGoals;
     name?: string | null;
     updatedAt: number;
 };
