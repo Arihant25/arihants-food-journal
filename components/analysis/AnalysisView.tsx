@@ -78,6 +78,9 @@ export function AnalysisView() {
               </div>
               <div className="nums mt-2 font-display text-2xl font-semibold text-ink">
                 <AnimatedNumber value={avg[n]} format={(v) => roundNutrient(n, v)} />
+                {settings.goals[n] > 0 && (
+                  <span className="text-lg font-normal text-ink-faint">/{roundNutrient(n, settings.goals[n])}</span>
+                )}
                 <span className="ml-1 text-sm font-normal text-ink-faint">{meta.unit === "kcal" ? "kcal" : "g"}</span>
               </div>
               <div className="mt-1 text-xs text-ink-soft">
