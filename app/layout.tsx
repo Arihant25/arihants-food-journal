@@ -23,7 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 const SITE_NAME = "Arihant's Food Journal";
 const SITE_DESCRIPTION =
-  "A warm, private food journal that logs what you eat and uses AI to fill in calories, protein, carbs, fat, and fiber — then shows whether you hit your goals each day.";
+  "A private food journal that logs what you eat and has AI to fill in nutrition information — to help you reach your goals every day.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
