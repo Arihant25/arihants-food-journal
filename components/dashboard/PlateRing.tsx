@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { NUTRIENTS, Nutrient, Nutrition } from "@/lib/types";
-import { NUTRIENT_HEX, NUTRIENT_META, goalProgress, roundNutrient } from "@/lib/nutrition";
+import { NUTRIENT_HEX, NUTRIENT_META, roundNutrient } from "@/lib/nutrition";
 import { DailyGoals } from "@/lib/types";
 import { useCountUp } from "@/hooks/useCountUp";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
@@ -12,16 +12,22 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
  * daily goal. The signature element of the journal.
  */
 export function PlateRing({ totals, goals }: { totals: Nutrition; goals: DailyGoals }) {
-  const progress = goalProgress(totals, goals);
+  // Unclamped — values can exceed 1.0 when a goal is surpassed
+  const progress = Object.fromEntries(
+    NUTRIENTS.map((n) => [n, goals[n] > 0 ? totals[n] / goals[n] : 0])
+  ) as Record<Nutrient, number>;
   const [hovered, setHovered] = useState<Nutrient | null>(null);
-  const size = 184;
+  const size = 220;
   const c = size / 2;
-  const stroke = 9;
-  const gap = 13;
+  const stroke = 12;
+  const gap = 15;
+  // Inner edge of the innermost ring, minus a small gap — fills center with surface color
+  const centerR = c - 8 - (NUTRIENTS.length - 1) * gap - stroke / 2 - 3;
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Daily nutrient progress">
+        <circle cx={c} cy={c} r={centerR} fill="var(--color-surface)" />
         {NUTRIENTS.map((n, i) => (
           <Ring
             key={n}
@@ -29,7 +35,7 @@ export function PlateRing({ totals, goals }: { totals: Nutrition; goals: DailyGo
             c={c}
             r={c - 8 - i * gap}
             stroke={stroke}
-            filled={Math.min(1, progress[n])}
+            filled={progress[n]}
             onMouseEnter={() => setHovered(n)}
             onMouseLeave={() => setHovered(null)}
           />
@@ -37,23 +43,24 @@ export function PlateRing({ totals, goals }: { totals: Nutrition; goals: DailyGo
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center pointer-events-none">
         {hovered ? (
-          <div>
-            <div className="text-[0.65rem] font-medium uppercase tracking-[0.14em]" style={{ color: NUTRIENT_HEX[hovered] }}>
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="text-[0.58rem] font-semibold uppercase tracking-[0.18em]" style={{ color: NUTRIENT_HEX[hovered] }}>
               {NUTRIENT_META[hovered].label}
             </div>
-            <div className="nums font-display text-2xl font-semibold leading-none text-ink">
-              {Math.round(Math.min(1, progress[hovered]) * 100)}%
+            <div className="nums font-display text-xl font-semibold leading-none text-ink">
+              {Math.round(progress[hovered] * 100)}%
             </div>
           </div>
         ) : (
-          <div>
+          <div className="flex flex-col items-center gap-1">
             <AnimatedNumber
               value={totals.calories}
               format={(v) => roundNutrient("calories", v)}
-              className="nums font-display text-3xl font-semibold leading-none text-ink"
+              className="nums font-display text-2xl font-semibold leading-none text-ink"
             />
-            <div className="mt-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-ink-soft">
-              of {goals.calories} kcal
+            <div className="flex flex-col items-center gap-px">
+              <span className="text-[0.62rem] font-medium text-ink-soft">of {goals.calories}</span>
+              <span className="text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-ink-faint">kcal</span>
             </div>
           </div>
         )}
@@ -71,19 +78,35 @@ function Ring({
 }) {
   const animated = useCountUp(filled, 700);
   const circ = 2 * Math.PI * r;
+  const mainFill = Math.min(1, animated);
+  const overflow = Math.max(0, animated - 1);
   return (
     <g transform={`rotate(-90 ${c} ${c})`} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: "default" }}>
-      <circle cx={c} cy={c} r={r} fill="none" stroke={NUTRIENT_HEX[nutrient]} strokeOpacity={0.16} strokeWidth={stroke} />
+      {/* Track */}
+      <circle cx={c} cy={c} r={r} fill="none" stroke={NUTRIENT_HEX[nutrient]} strokeOpacity={0.2} strokeWidth={stroke} />
+      {/* Main fill arc — slightly sub-opaque so the overlap region darkens visibly */}
       <circle
         cx={c}
         cy={c}
         r={r}
         fill="none"
         stroke={NUTRIENT_HEX[nutrient]}
+        strokeOpacity={overflow > 0 ? 0.78 : 1}
         strokeWidth={stroke}
         strokeLinecap="round"
-        strokeDasharray={`${animated * circ} ${circ}`}
+        strokeDasharray={`${mainFill * circ} ${circ}`}
       />
+      {/* Overflow: same color/opacity wraps from start — overlap region compounds to ~0.95, visibly bolder */}
+      {overflow > 0 && (
+        <circle
+          cx={c} cy={c} r={r} fill="none"
+          stroke={NUTRIENT_HEX[nutrient]}
+          strokeOpacity={0.78}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${overflow * circ} ${circ}`}
+        />
+      )}
       {/* Transparent wider hit area for easier hovering */}
       <circle cx={c} cy={c} r={r} fill="none" stroke="transparent" strokeWidth={stroke + 8} />
     </g>

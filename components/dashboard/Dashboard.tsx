@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { FoodEntry, NUTRIENTS, Nutrient, NutritionEstimate } from "@/lib/types";
 import { NUTRIENT_META, roundNutrient, sumNutrition } from "@/lib/nutrition";
@@ -283,6 +283,17 @@ function EntryCard({ entry, onPatch, onDelete }: { entry: FoodEntry; onPatch: (e
 
 function NutrientField({ nutrient, value, onChange }: { nutrient: Nutrient; value: number; onChange: (v: number) => void }) {
   const meta = NUTRIENT_META[nutrient];
+  const [display, setDisplay] = useState(() => value ? String(roundNutrient(nutrient, value)) : "");
+  const focused = useRef(false);
+  const lastParsed = useRef(value);
+
+  useEffect(() => {
+    if (!focused.current) {
+      setDisplay(value ? String(roundNutrient(nutrient, value)) : "");
+    }
+    lastParsed.current = value;
+  }, [value, nutrient]);
+
   return (
     <label className="flex flex-col gap-0.5 rounded-lg px-1.5 py-1" style={{ background: meta.soft }}>
       <span className="flex items-center gap-1 text-[0.6rem] font-semibold uppercase tracking-wide" style={{ color: meta.color }}>
@@ -290,8 +301,21 @@ function NutrientField({ nutrient, value, onChange }: { nutrient: Nutrient; valu
         {meta.short}
       </span>
       <input
-        value={value ? roundNutrient(nutrient, value) : ""}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        value={display}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDisplay(raw);
+          const num = parseFloat(raw);
+          const v = Number.isFinite(num) && num >= 0 ? num : 0;
+          lastParsed.current = v;
+          onChange(v);
+        }}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => {
+          focused.current = false;
+          const v = lastParsed.current;
+          setDisplay(v ? String(roundNutrient(nutrient, v)) : "");
+        }}
         inputMode="decimal"
         placeholder="0"
         aria-label={`${meta.label} in ${meta.unit}`}
