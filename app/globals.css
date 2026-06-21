@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Arihant's Food Journal — "Kitchen Garden" design system.
+  Warm paper, deep herb green, and a natural-pigment nutrient palette
+  that is reused everywhere: macro bars, charts, and the harvest calendar dots.
+*/
+
+@theme {
+  /* Surfaces & ink */
+  --color-paper: #faf6ec;
+  --color-paper-deep: #f3ecdc;
+  --color-surface: #fffdf8;
+  --color-ink: #2b2722;
+  --color-ink-soft: #6f665a;
+  --color-ink-faint: #9c9286;
+  --color-line: #e9dfca;
+  --color-line-soft: #f0e8d6;
+
+  /* Brand */
+  --color-herb: #41562f;
+  --color-herb-deep: #2f3e22;
+  --color-herb-soft: #eef0e2;
+  --color-clay: #bd6239;
+  --color-honey: #e0a23b;
+
+  /* Nutrient pigments — the core visual language */
+  --color-cal: #e0a23b;     /* calories  — amber/honey */
+  --color-protein: #c2435a; /* protein   — beet red */
+  --color-carbs: #df7a2c;   /* carbs     — pumpkin */
+  --color-fat: #b08a2e;     /* fat       — golden seed */
+  --color-fiber: #5a9e63;   /* fiber     — leaf green */
+
+  /* Tints for filled track backgrounds */
+  --color-cal-soft: #f7e9cf;
+  --color-protein-soft: #f4dbe0;
+  --color-carbs-soft: #f6e2cf;
+  --color-fat-soft: #f0e6cc;
+  --color-fiber-soft: #dcecdc;
+
+  /* Type */
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* Organic radii */
+  --radius-organic: 0.9rem;
+  --radius-pill: 999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-family: var(--font-sans);
+    /* subtle organic paper grain via layered radial gradients */
+    background-color: var(--color-paper);
+    background-image:
+      radial-gradient(circle at 12% 18%, #ffffff66 0, transparent 40%),
+      radial-gradient(circle at 88% 8%, #f0ead64d 0, transparent 45%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+
+  /* Tabular figures for all nutrition numbers */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-herb);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-herb);
+    color: #fff;
+  }
+
+  /* Quiet, warm scrollbars */
+  * {
+    scrollbar-color: var(--color-line) transparent;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
