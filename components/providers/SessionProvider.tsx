@@ -47,18 +47,19 @@ const emitToken = () => {
   for (const listener of tokenListeners) listener();
 };
 
-/** Read the stored token, returning it only if present and unexpired. */
-function readValidToken(): string | null {
+/** Read the stored token regardless of expiry — used for UI continuity. */
+function readStoredToken(): string | null {
   try {
-    const stored = window.localStorage.getItem(TOKEN_KEY);
-    if (!stored) return null;
-    const claims = decodeJwt(stored);
-    if (claims && claims.exp * 1000 > Date.now()) return stored;
-    window.localStorage.removeItem(TOKEN_KEY);
-    return null;
+    return window.localStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
+}
+
+/** True when the token's exp claim is in the past. */
+function isTokenExpired(token: string): boolean {
+  const claims = decodeJwt(token);
+  return !claims || claims.exp * 1000 <= Date.now();
 }
 
 const tokenStore = {
@@ -69,11 +70,11 @@ const tokenStore = {
     tokenListeners.add(listener);
     if (!tokenHydrated) {
       tokenHydrated = true;
-      currentToken = readValidToken();
+      currentToken = readStoredToken();
       // Follow sign-in / sign-out in other tabs.
       window.addEventListener("storage", (e) => {
         if (e.key === TOKEN_KEY) {
-          currentToken = readValidToken();
+          currentToken = readStoredToken();
           emitToken();
         }
       });
@@ -121,13 +122,14 @@ declare global {
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const token = useSyncExternalStore(tokenStore.subscribe, tokenStore.getSnapshot, tokenStore.getServerSnapshot);
+  const rawToken = useSyncExternalStore(tokenStore.subscribe, tokenStore.getSnapshot, tokenStore.getServerSnapshot);
   const [ready, setReady] = useState(false);
   const initialized = useRef(false);
 
-  // Pure: just decode. Only valid tokens ever reach the store (fresh from Google,
-  // or restored after an expiry check), so there is nothing to reject here.
-  const user = useMemo(() => (token ? decodeJwt(token) : null), [token]);
+  // Decode even expired tokens so the user's identity remains visible while a
+  // fresh token is being obtained in the background via auto_select / prompt.
+  const user = useMemo(() => (rawToken ? decodeJwt(rawToken) : null), [rawToken]);
+  const tokenExpired = rawToken ? isTokenExpired(rawToken) : false;
 
   const handleCredential = useCallback((response: { credential: string }) => {
     tokenStore.set(response.credential);
@@ -143,7 +145,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
     initialized.current = true;
     setReady(true);
-    if (!tokenStore.getSnapshot()) window.google.accounts.id.prompt();
+    // Prompt whenever there is no token or the stored token has expired so that
+    // auto_select can silently deliver a fresh credential.
+    const stored = tokenStore.getSnapshot();
+    if (!stored || isTokenExpired(stored)) window.google.accounts.id.prompt();
   }, [handleCredential]);
 
   const signOut = useCallback(() => {
@@ -168,7 +173,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value: SessionValue = {
     user,
-    token: user ? token : null,
+    // Only expose the token for API use when it is actually valid; an expired
+    // token is kept in the store solely to keep the user's identity visible.
+    token: user && !tokenExpired ? rawToken : null,
     configured: Boolean(CLIENT_ID),
     ready,
     signOut,
