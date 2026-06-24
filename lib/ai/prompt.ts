@@ -10,6 +10,8 @@ export interface NutritionItemInput {
   name: string;
   /** Free-form amount, e.g. "1 plate", "200 g", "a handful". */
   amount: string;
+  /** Optional extra context, e.g. brand, preparation method. */
+  notes?: string;
 }
 
 const NUTRIENT_GUIDE =
@@ -18,7 +20,10 @@ const NUTRIENT_GUIDE =
 /** Build the prompt that asks the model to estimate nutrition for each item. */
 export function nutritionMessages(items: NutritionItemInput[]): ChatMessage[] {
   const list = items
-    .map((it, i) => `${i + 1}. ${it.name} — ${it.amount}`)
+    .map((it, i) => {
+      const base = `${i + 1}. ${it.name} — ${it.amount}`;
+      return it.notes?.trim() ? `${base} (${it.notes.trim()})` : base;
+    })
     .join("\n");
 
   return [

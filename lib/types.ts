@@ -29,6 +29,8 @@ export interface FoodEntry {
   carbs: number;
   fat: number;
   fiber: number;
+  /** Optional free-form notes, e.g. brand, preparation method, caveats. */
+  notes?: string;
   /** Whether the nutrition values were produced by the AI assistant. */
   aiFilled?: boolean;
   createdAt: number;

@@ -22,7 +22,7 @@ export function Dashboard() {
   );
   const totals = useMemo(() => sumNutrition(dayEntries), [dayEntries]);
 
-  function addEntry(draft: { name: string; amount: string; time: string }) {
+  function addEntry(draft: { name: string; amount: string; time: string; notes: string }) {
     const now = Date.now();
     upsertEntry({
       id: newId(),
@@ -30,6 +30,7 @@ export function Dashboard() {
       time: draft.time,
       name: draft.name.trim(),
       amount: draft.amount.trim() || "1 serving",
+      notes: draft.notes.trim() || undefined,
       calories: 0,
       protein: 0,
       carbs: 0,
@@ -58,7 +59,7 @@ export function Dashboard() {
     setFilling(true);
     try {
       const estimates = await estimateNutrition(
-        targets.map((e) => ({ name: e.name, amount: e.amount })),
+        targets.map((e) => ({ name: e.name, amount: e.amount, notes: e.notes })),
         settings.ai,
       );
       // Don't apply yet — let the user review and confirm each item first.
@@ -195,17 +196,19 @@ function NavBtn({ children, label, onClick, disabled }: { children: React.ReactN
   );
 }
 
-function AddFoodForm({ onAdd }: { onAdd: (d: { name: string; amount: string; time: string }) => void }) {
+function AddFoodForm({ onAdd }: { onAdd: (d: { name: string; amount: string; time: string; notes: string }) => void }) {
   const [time, setTime] = useState(nowTime());
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    onAdd({ name, amount, time });
+    onAdd({ name, amount, time, notes });
     setName("");
     setAmount("");
+    setNotes("");
   }
 
   return (
@@ -222,7 +225,7 @@ function AddFoodForm({ onAdd }: { onAdd: (d: { name: string; amount: string; tim
         onChange={(e) => setName(e.target.value)}
         placeholder="Add a food — e.g. rice/banana/eggs"
         aria-label="Food name"
-        className="min-w-[12rem] flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-herb"
+        className="min-w-48 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-herb"
       />
       <input
         value={amount}
@@ -230,6 +233,13 @@ function AddFoodForm({ onAdd }: { onAdd: (d: { name: string; amount: string; tim
         placeholder="e.g. 1 plate/100g"
         aria-label="Amount"
         className="w-40 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-herb"
+      />
+      <input
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Notes (optional)"
+        aria-label="Notes"
+        className="w-44 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-herb"
       />
       <button type="submit" className="rounded-pill bg-clay px-4 py-2 text-sm font-semibold text-paper transition hover:brightness-95">
         Add
@@ -253,7 +263,7 @@ function EntryCard({ entry, onPatch, onDelete }: { entry: FoodEntry; onPatch: (e
           value={entry.name}
           onChange={(e) => onPatch(entry, { name: e.target.value })}
           aria-label="Food name"
-          className="min-w-[10rem] flex-1 rounded-lg border border-transparent bg-transparent px-1.5 py-1.5 font-medium text-ink hover:bg-paper-deep/40 focus:border-herb focus:bg-surface"
+          className="min-w-40 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 py-1.5 font-medium text-ink hover:bg-paper-deep/40 focus:border-herb focus:bg-surface"
         />
         <input
           value={entry.amount}
@@ -277,6 +287,13 @@ function EntryCard({ entry, onPatch, onDelete }: { entry: FoodEntry; onPatch: (e
           <NutrientField key={n} nutrient={n} value={entry[n]} onChange={(v) => onPatch(entry, { [n]: v })} />
         ))}
       </div>
+      <input
+        value={entry.notes ?? ""}
+        onChange={(e) => onPatch(entry, { notes: e.target.value || undefined })}
+        placeholder="Notes (optional) — e.g. brand, prep method, assumptions"
+        aria-label="Notes"
+        className="mt-2 w-full rounded-lg border border-transparent bg-paper-deep/40 px-2.5 py-1.5 text-xs text-ink-soft placeholder:text-ink-faint focus:border-herb focus:bg-surface focus:outline-none"
+      />
     </li>
   );
 }

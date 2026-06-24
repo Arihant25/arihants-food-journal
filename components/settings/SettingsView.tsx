@@ -547,15 +547,15 @@ function ExportSection() {
       return;
     }
 
-    const header = ["date", "time", "name", "amount", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g"];
-    const escape = (v: string | number) => {
-      const s = String(v);
+    const header = ["date", "time", "name", "amount", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g", "notes"];
+    const escape = (v: string | number | undefined) => {
+      const s = String(v ?? "");
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const csv = [
       header.join(","),
       ...rows.map((e) =>
-        [e.date, e.time, e.name, e.amount, e.calories, e.protein, e.carbs, e.fat, e.fiber]
+        [e.date, e.time, e.name, e.amount, e.calories, e.protein, e.carbs, e.fat, e.fiber, e.notes ?? ""]
           .map(escape)
           .join(",")
       ),
@@ -582,8 +582,8 @@ function ExportSection() {
               type="button"
               onClick={() => applyQuickRange(q.range)}
               className={`rounded-pill px-3 py-1.5 text-xs font-medium transition ${active
-                  ? "bg-herb text-paper shadow-sm"
-                  : "border border-line bg-surface text-ink-soft hover:border-herb"
+                ? "bg-herb text-paper shadow-sm"
+                : "border border-line bg-surface text-ink-soft hover:border-herb"
                 }`}
             >
               {q.label}
