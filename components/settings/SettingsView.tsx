@@ -38,6 +38,7 @@ export function SettingsView() {
       <AiSection />
       <TargetsSection />
       <AccountSection />
+      <ExportSection />
       <DangerSection />
     </div>
   );
@@ -471,6 +472,156 @@ function GoogleSetup() {
         <li>Restart the dev server. A <strong>Sign in</strong> button will appear in the top-right.</li>
       </ol>
     </div>
+  );
+}
+
+/* ------------------------------- export ----------------------------------- */
+
+const QUICK_RANGES: { label: string; range: () => [string, string] }[] = [
+  {
+    label: "Today",
+    range: () => {
+      const d = new Date().toISOString().slice(0, 10);
+      return [d, d];
+    },
+  },
+  {
+    label: "This week",
+    range: () => {
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun
+      const mon = new Date(now);
+      mon.setDate(now.getDate() - ((day + 6) % 7));
+      return [mon.toISOString().slice(0, 10), now.toISOString().slice(0, 10)];
+    },
+  },
+  {
+    label: "This month",
+    range: () => {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [first.toISOString().slice(0, 10), now.toISOString().slice(0, 10)];
+    },
+  },
+  {
+    label: "This year",
+    range: () => {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), 0, 1);
+      return [first.toISOString().slice(0, 10), now.toISOString().slice(0, 10)];
+    },
+  },
+  {
+    label: "All time",
+    range: () => ["1970-01-01", new Date().toISOString().slice(0, 10)],
+  },
+];
+
+function ExportSection() {
+  const { entries } = useStore();
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(today);
+  const [to, setTo] = useState(today);
+  const [error, setError] = useState<string | null>(null);
+
+  function applyQuickRange(range: () => [string, string]) {
+    const [f, t] = range();
+    setFrom(f);
+    setTo(t);
+    setError(null);
+  }
+
+  function handleExport() {
+    setError(null);
+    if (from > to) {
+      setError("Start date must be on or before end date.");
+      return;
+    }
+
+    const rows = entries
+      .filter((e) => e.date >= from && e.date <= to)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+    if (rows.length === 0) {
+      setError("No entries found in that date range.");
+      return;
+    }
+
+    const header = ["date", "time", "name", "amount", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g"];
+    const escape = (v: string | number) => {
+      const s = String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
+      header.join(","),
+      ...rows.map((e) =>
+        [e.date, e.time, e.name, e.amount, e.calories, e.protein, e.carbs, e.fat, e.fiber]
+          .map(escape)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `food-journal-${from}${from !== to ? `_to_${to}` : ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <Card title="Export" description="Download your food entries as a CSV file for the selected date range.">
+      <div className="mb-3 flex flex-wrap gap-2">
+        {QUICK_RANGES.map((q) => {
+          const [qf, qt] = q.range();
+          const active = from === qf && to === qt;
+          return (
+            <button
+              key={q.label}
+              type="button"
+              onClick={() => applyQuickRange(q.range)}
+              className={`rounded-pill px-3 py-1.5 text-xs font-medium transition ${active
+                  ? "bg-herb text-paper shadow-sm"
+                  : "border border-line bg-surface text-ink-soft hover:border-herb"
+                }`}
+            >
+              {q.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ink-soft">From</span>
+          <input
+            type="date"
+            value={from}
+            max={today}
+            onChange={(e) => setFrom(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ink-soft">To</span>
+          <input
+            type="date"
+            value={to}
+            max={today}
+            onChange={(e) => setTo(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="rounded-pill bg-herb px-4 py-2 text-sm font-semibold text-paper transition hover:bg-herb-deep"
+        >
+          Export CSV
+        </button>
+      </div>
+      {error && <p className="mt-3 text-sm text-protein">{error}</p>}
+    </Card>
   );
 }
 
