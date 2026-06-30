@@ -133,6 +133,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const handleCredential = useCallback((response: { credential: string }) => {
     tokenStore.set(response.credential);
+    // Exchange the short-lived Google ID token for a long-lived session cookie
+    // so subsequent API calls are authenticated even after the token expires.
+    fetch("/api/auth/session", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${response.credential}` },
+    }).catch(() => { });
   }, []);
 
   const initGsi = useCallback(() => {
@@ -153,6 +159,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(() => {
     tokenStore.clear();
+    fetch("/api/auth/session", { method: "DELETE" }).catch(() => {/* best-effort */ });
     try {
       window.google?.accounts.id.disableAutoSelect();
     } catch {
