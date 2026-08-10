@@ -45,13 +45,17 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-/** Remove the user's synced keys (called when sync is turned off). */
+/**
+ * Remove the user's synced keys (called when sync is turned off). Only the keys
+ * are cleared — daily requirements and name stay synced, so turning key sync off
+ * doesn't silently drop the rest of the document.
+ */
 export async function DELETE(request: NextRequest) {
   const userId = await verifyRequest(request);
   if (!userId) return unauthorized();
   try {
     const col = await settingsCollection();
-    await col.deleteOne({ userId });
+    await col.updateOne({ userId }, { $unset: { apiKeys: "" }, $set: { updatedAt: Date.now() } });
     return Response.json({ ok: true });
   } catch (e) {
     return serverError(e);
