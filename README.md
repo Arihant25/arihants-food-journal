@@ -27,8 +27,8 @@ for every nutrition goal it met.
 ## Getting started
 
 ```bash
-npm install
-npm run dev          # http://localhost:3000
+bun install
+bun run dev          # http://localhost:3000
 ```
 
 The app is usable immediately. To use AI nutrition, open **Settings**, pick a

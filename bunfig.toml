@@ -1,0 +1,2 @@
+# Runs before anything else in every bun process — see bun-preload.ts for why.
+preload = ["./bun-preload.ts"]
