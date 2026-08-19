@@ -21,7 +21,12 @@ export async function GET(request: NextRequest) {
   try {
     const col = await settingsCollection();
     const doc = await col.findOne({ userId }, { projection: { _id: 0, userId: 0 } });
-    return Response.json({ apiKeys: doc?.apiKeys ?? {}, goals: doc?.goals ?? null, name: doc?.name ?? null });
+    return Response.json({
+      apiKeys: doc?.apiKeys ?? {},
+      syncKeys: doc?.syncKeys ?? false,
+      goals: doc?.goals ?? null,
+      name: doc?.name ?? null,
+    });
   } catch (e) {
     return serverError(e);
   }
@@ -32,10 +37,16 @@ export async function PUT(request: NextRequest) {
   const userId = await verifyRequest(request);
   if (!userId) return unauthorized();
   try {
-    const body = (await request.json()) as { apiKeys?: Partial<Record<AiProvider, string>>; goals?: DailyGoals; name?: string };
+    const body = (await request.json()) as {
+      apiKeys?: Partial<Record<AiProvider, string>>;
+      syncKeys?: boolean;
+      goals?: DailyGoals;
+      name?: string;
+    };
     const col = await settingsCollection();
     const $set: Record<string, unknown> = { updatedAt: Date.now() };
     if (body.apiKeys !== undefined) $set.apiKeys = body.apiKeys;
+    if (body.syncKeys !== undefined) $set.syncKeys = body.syncKeys;
     if (body.goals !== undefined) $set.goals = body.goals;
     if ("name" in body) $set.name = body.name ?? null;
     await col.updateOne({ userId }, { $set, $setOnInsert: { userId } } as object, { upsert: true });
@@ -46,16 +57,20 @@ export async function PUT(request: NextRequest) {
 }
 
 /**
- * Remove the user's synced keys (called when sync is turned off). Only the keys
- * are cleared — daily requirements and name stay synced, so turning key sync off
- * doesn't silently drop the rest of the document.
+ * Remove the user's synced keys and clear the opt-in (called when sync is turned
+ * off), so other devices stop adopting them. Only the keys go — daily
+ * requirements and name stay synced.
  */
 export async function DELETE(request: NextRequest) {
   const userId = await verifyRequest(request);
   if (!userId) return unauthorized();
   try {
     const col = await settingsCollection();
-    await col.updateOne({ userId }, { $unset: { apiKeys: "" }, $set: { updatedAt: Date.now() } });
+    await col.updateOne(
+      { userId },
+      { $unset: { apiKeys: "" }, $set: { syncKeys: false, updatedAt: Date.now() } },
+      { upsert: true },
+    );
     return Response.json({ ok: true });
   } catch (e) {
     return serverError(e);

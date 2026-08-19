@@ -79,6 +79,40 @@
     font-feature-settings: "tnum";
   }
 
+  /*
+    Native date/time fields. Mobile WebKit lays these out as a fixed-height
+    replaced box: the value is centred and the picker indicator is pinned to the
+    box's own baseline rather than the padding box, so inside our pill-shaped
+    fields the arrow sat off-centre and crowded the right edge. Dropping the
+    native appearance and making the host a flex line-up hands the alignment
+    back to our own padding, on every browser.
+  */
+  input[type="date"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="time"]::-webkit-datetime-edit {
+    padding: 0;
+    line-height: 1.2;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    margin: 0 0 0 0.4rem;
+    padding: 0;
+    opacity: 0.55;
+  }
+
   :focus-visible {
     outline: 2px solid var(--color-herb);
     outline-offset: 2px;

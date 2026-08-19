@@ -2,12 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import {
+  apiKeysEqual,
   bulkPushCloud,
   deleteAllCloudEntries,
   deleteCloudEntry,
   deleteCloudKeys,
   fetchCloudEntries,
   fetchCloudSettings,
+  mergeApiKeys,
   mergeEntries,
   putCloudEntry,
   putCloudGoals,
@@ -39,6 +41,21 @@ export function useStore() {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error("useStore must be used within StoreProvider");
   return ctx;
+}
+
+/**
+ * Turn key sync on for this device: take the union of the cloud's keys and this
+ * device's, apply it locally, and store it back. Two-way so that whichever
+ * device flips the switch, neither side loses a key it alone had.
+ */
+async function adoptCloudKeys(token: string, localKeys: Settings["ai"]["apiKeys"]) {
+  const cloud = await fetchCloudSettings(token);
+  const merged = mergeApiKeys(cloud.apiKeys, localKeys);
+  const current = store.getSettings();
+  // The user may have switched sync back off while this was in flight.
+  if (!current.ai.syncKeys) return;
+  store.setSettings({ ...current, ai: { ...current.ai, apiKeys: merged } });
+  await putCloudKeys(token, merged);
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -87,8 +104,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // synced source of truth); otherwise keep local and seed the cloud below.
           goals: cloud.goals ?? prev.goals,
         };
-        if (prev.ai.syncKeys) {
-          next.ai = { ...prev.ai, apiKeys: { ...prev.ai.apiKeys, ...cloud.apiKeys } };
+        // API keys: the opt-in lives on the account, not the device — a machine
+        // signing in for the first time has no local flag to consult, so the
+        // cloud's is what tells it to adopt the keys.
+        if (cloud.syncKeys || prev.ai.syncKeys) {
+          const apiKeys = mergeApiKeys(cloud.apiKeys, prev.ai.apiKeys);
+          next.ai = { ...prev.ai, syncKeys: true, apiKeys };
+          // Converge the other way too: this device may be the one that opted in,
+          // or may hold a key the cloud hasn't seen.
+          if (!cloud.syncKeys || !apiKeysEqual(apiKeys, cloud.apiKeys)) {
+            putCloudKeys(token, apiKeys).catch(() => { });
+          }
         }
         store.setSettings(next);
         // First device to sign in seeds the cloud with its daily requirements.
@@ -142,9 +168,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         const was = prev.ai.syncKeys ?? false;
         const now = next.ai.syncKeys ?? false;
-        if (now) {
+        if (now && !was) {
+          // Just opted in. Pull before pushing: on a device with no keys yet, a
+          // blind push would wipe the ones another device stored.
+          adoptCloudKeys(token, next.ai.apiKeys).catch(() => setSync("error"));
+        } else if (now && !apiKeysEqual(prev.ai.apiKeys, next.ai.apiKeys)) {
           putCloudKeys(token, next.ai.apiKeys).catch(() => setSync("error"));
-        } else if (was) {
+        } else if (was && !now) {
           deleteCloudKeys(token).catch(() => setSync("error"));
         }
         if ("name" in patch) {

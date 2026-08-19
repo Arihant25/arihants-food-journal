@@ -103,26 +103,37 @@ export async function deleteAllCloudEntries(token: string): Promise<void> {
 
 /* ----------------------------- cloud settings ----------------------------- */
 
-/** Fetch the user's synced settings (API keys + daily requirements + name). */
-export async function fetchCloudSettings(
-  token: string,
-): Promise<{ apiKeys: Partial<Record<AiProvider, string>>; goals?: DailyGoals; name?: string }> {
+export type CloudSettings = {
+  apiKeys: Partial<Record<AiProvider, string>>;
+  /** The account-level opt-in. A fresh device learns from this that it should adopt the keys. */
+  syncKeys: boolean;
+  goals?: DailyGoals;
+  name?: string;
+};
+
+/** Fetch the user's synced settings (API keys + opt-in flag + daily requirements + name). */
+export async function fetchCloudSettings(token: string): Promise<CloudSettings> {
   const res = await fetch("/api/settings", { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to load cloud settings");
   const data = await res.json();
   return {
     apiKeys: (data.apiKeys ?? {}) as Partial<Record<AiProvider, string>>,
+    syncKeys: Boolean(data.syncKeys),
     goals: (data.goals ?? undefined) as DailyGoals | undefined,
     name: data.name ?? undefined,
   };
 }
 
-/** Store the user's API keys in their cloud account. */
+/**
+ * Store the user's API keys in their cloud account, along with the opt-in flag —
+ * the flag has to live server-side too, or a new device has no way to know the
+ * keys waiting for it are meant to be adopted.
+ */
 export async function putCloudKeys(token: string, apiKeys: Partial<Record<AiProvider, string>>): Promise<void> {
   const res = await fetch("/api/settings", {
     method: "PUT",
     headers: authHeaders(token),
-    body: JSON.stringify({ apiKeys }),
+    body: JSON.stringify({ apiKeys, syncKeys: true }),
   });
   if (!res.ok) throw new Error("Failed to save keys to cloud");
 }
@@ -165,6 +176,35 @@ export async function bulkPushCloud(token: string, entries: FoodEntry[]): Promis
 }
 
 /* --------------------------------- merging -------------------------------- */
+
+/**
+ * Merge a cloud key map with this device's, dropping blanks. A key typed on this
+ * device wins over the cloud copy (it's the more recent edit); everything the
+ * device is missing is filled in from the cloud. Empty values never survive, so
+ * a fresh device can't blank out a key that another device stored.
+ */
+export function mergeApiKeys(
+  cloud: Partial<Record<AiProvider, string>>,
+  local: Partial<Record<AiProvider, string>>,
+): Partial<Record<AiProvider, string>> {
+  const merged: Partial<Record<AiProvider, string>> = {};
+  for (const [provider, key] of [...Object.entries(cloud), ...Object.entries(local)]) {
+    if (key) merged[provider as AiProvider] = key;
+  }
+  return merged;
+}
+
+/** Whether two key maps hold the same providers and values (order-insensitive). */
+export function apiKeysEqual(
+  a: Partial<Record<AiProvider, string>>,
+  b: Partial<Record<AiProvider, string>>,
+): boolean {
+  const norm = (m: Partial<Record<AiProvider, string>>) =>
+    Object.entries(m)
+      .filter(([, v]) => v)
+      .sort(([x], [y]) => x.localeCompare(y));
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+}
 
 /** Merge two entry lists by id, keeping the most recently updated copy. */
 export function mergeEntries(a: FoodEntry[], b: FoodEntry[]): FoodEntry[] {

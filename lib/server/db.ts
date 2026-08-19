@@ -15,6 +15,8 @@ type StoredEntry = FoodEntry & { userId: string };
 export type StoredSettings = {
     userId: string;
     apiKeys: Partial<Record<AiProvider, string>>;
+    /** Whether this account opted into key sync. Stored so a fresh device knows to pull. */
+    syncKeys?: boolean;
     goals?: DailyGoals;
     name?: string | null;
     updatedAt: number;
