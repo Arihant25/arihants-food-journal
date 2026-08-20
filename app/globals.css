@@ -80,37 +80,45 @@
   }
 
   /*
-    Native date/time fields. Mobile WebKit lays these out as a fixed-height
-    replaced box: the value is centred and the picker indicator is pinned to the
-    box's own baseline rather than the padding box, so inside our pill-shaped
-    fields the arrow sat off-centre and crowded the right edge. Dropping the
-    native appearance and making the host a flex line-up hands the alignment
-    back to our own padding, on every browser.
+    Native date fields. Mobile browsers lay these out as a fixed-height replaced
+    box, centring the value and hanging the picker indicator off that box rather
+    than our padding — so the arrow sat off-centre inside the pill. Dropping the
+    native appearance fixes the alignment, but it also strips the indicator's
+    glyph on mobile, which is why the arrow vanished entirely.
+
+    So: draw the chevron ourselves as a background image, positioned against our
+    own padding and therefore identical on every browser, and keep the native
+    indicator on top of it as an invisible hit target — that is still what opens
+    the picker on desktop. Fields need `pr-8` to reserve room for it.
   */
-  input[type="date"],
-  input[type="time"] {
+  input[type="date"] {
     -webkit-appearance: none;
     appearance: none;
     display: inline-flex;
     align-items: center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236f665a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25l5-4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 0.6rem auto;
   }
 
-  input[type="date"]::-webkit-date-and-time-value,
-  input[type="time"]::-webkit-date-and-time-value {
+  input[type="date"]::-webkit-date-and-time-value {
     text-align: left;
     margin: 0;
   }
 
-  input[type="date"]::-webkit-datetime-edit,
-  input[type="time"]::-webkit-datetime-edit {
+  input[type="date"]::-webkit-datetime-edit {
     padding: 0;
     line-height: 1.2;
   }
 
+  /* Invisible, but still the picker's click target — parked over the chevron. */
   input[type="date"]::-webkit-calendar-picker-indicator {
-    margin: 0 0 0 0.4rem;
+    width: 1.1rem;
+    margin: 0 -1.6rem 0 auto;
     padding: 0;
-    opacity: 0.55;
+    opacity: 0;
+    cursor: pointer;
   }
 
   :focus-visible {

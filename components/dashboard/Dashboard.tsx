@@ -169,7 +169,7 @@ function DateBar({ date, onChange, sync, onRefresh }: { date: string; onChange: 
           value={date}
           max={todayISO()}
           onChange={(e) => onChange(e.target.value || todayISO())}
-          className="rounded-pill border border-line bg-surface px-3 py-1.5 text-sm text-ink-soft focus:border-herb"
+          className="rounded-pill border border-line bg-surface px-3 py-1.5 pr-8 text-sm text-ink-soft focus:border-herb"
         />
         <NavBtn label="Next day" onClick={() => onChange(addDays(date, 1))} disabled={isToday(date)}>›</NavBtn>
         {sync !== "local" && (

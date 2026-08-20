@@ -599,7 +599,7 @@ function ExportSection() {
             value={from}
             max={today}
             onChange={(e) => setFrom(e.target.value)}
-            className={inputClass}
+            className={`${inputClass} pr-8`}
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -609,7 +609,7 @@ function ExportSection() {
             value={to}
             max={today}
             onChange={(e) => setTo(e.target.value)}
-            className={inputClass}
+            className={`${inputClass} pr-8`}
           />
         </label>
         <button
