@@ -10,12 +10,16 @@ import { NUTRIENT_HEX, NUTRIENT_META, roundNutrient } from "@/lib/nutrition";
 import { averageOver, dailyTotals, recentDates } from "@/lib/analysis";
 import { fromISODate } from "@/lib/date";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { useCanHover } from "@/hooks/useCanHover";
 import { HarvestCalendar } from "./HarvestCalendar";
 
 const MACROS: Nutrient[] = ["protein", "carbs", "fat", "fiber"];
 
 export function AnalysisView() {
   const { ready, entries, settings } = useStore();
+  // On touch screens, show tooltips on tap — otherwise scrolling past a chart
+  // drags across it and pops them open.
+  const tooltipTrigger = useCanHover() ? "hover" : "click";
   const totals = useMemo(() => dailyTotals(entries), [entries]);
   const now = new Date();
   const [cal, setCal] = useState({ year: now.getFullYear(), month: now.getMonth() });
@@ -98,7 +102,7 @@ export function AnalysisView() {
             <CartesianGrid stroke="var(--color-line-soft)" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }} tickLine={false} axisLine={false} />
             <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }} tickLine={false} axisLine={false} width={52} domain={[0, (dataMax: number) => Math.max(dataMax, settings.goals.calories)]} />
-            <Tooltip cursor={{ fill: "var(--color-line-soft)" }} contentStyle={tooltipStyle} />
+            <Tooltip trigger={tooltipTrigger} cursor={{ fill: "var(--color-line-soft)" }} contentStyle={tooltipStyle} />
             <ReferenceLine y={settings.goals.calories} stroke={NUTRIENT_HEX.calories} strokeDasharray="4 4" />
             <Bar dataKey="calories" radius={[5, 5, 0, 0]} maxBarSize={28}>
               {calorieData.map((row) => (
@@ -121,7 +125,7 @@ export function AnalysisView() {
                   <CartesianGrid stroke="var(--color-line-soft)" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-faint)" }} tickLine={false} axisLine={false} width={40} domain={[0, (dataMax: number) => Math.max(dataMax, goal)]} />
-                  <Tooltip cursor={{ fill: "var(--color-line-soft)" }} contentStyle={tooltipStyle} />
+                  <Tooltip trigger={tooltipTrigger} cursor={{ fill: "var(--color-line-soft)" }} contentStyle={tooltipStyle} />
                   {goal > 0 && <ReferenceLine y={goal} stroke={NUTRIENT_HEX[n]} strokeDasharray="4 4" />}
                   <Bar dataKey={n} name={meta.label} radius={[4, 4, 0, 0]} maxBarSize={28}>
                     {macroData.map((row) => (
